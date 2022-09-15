@@ -1,0 +1,46 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+    inputs:
+      ssh:
+        description: 'SSH connection to Actions'
+        required: false
+        default: 'false'
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: set up JDK 8
+      uses: actions/setup-java@v2
+      with:
+        java-version: '8'
+        distribution: 'adopt'
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+    - name: Support mips64el
+      run: |
+        curl -O https://dl.google.com/android/repository/android-ndk-r17c-linux-x86_64.zip
+        unzip -q android-ndk-r17c-linux-x86_64.zip
+        cp -r android-ndk-r17c/toolchains/mips64el-linux-android-4.9 $ANDROID_NDK_HOME/toolchains/mips64el-linux-android-4.9
+    - name: SSH connection to Actions
+      uses: P3TERX/ssh2actions@v1.0.0
+      if: (github.event.inputs.ssh == 'true' && github.event.inputs.ssh  != 'false') || contains(github.event.action, 'ssh')
+      env:
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+    - name: Build with Gradle
+      run: ./gradlew build
+    - uses: actions/upload-artifact@v2
+      with:
+        name: my-artifact
+        path: app/build/outputs/apk
